@@ -39,6 +39,9 @@ type Task struct {
 
 // AssignTask the RPC argument and reply types are defined in rpc.go.
 func (c *Coordinator) AssignTask(args *TaskArgs, reply *TaskReply) error {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+
 	fmt.Println("Got a request from", args.PID)
 	switch args.State {
 	case InitState:
@@ -52,8 +55,6 @@ func (c *Coordinator) AssignTask(args *TaskArgs, reply *TaskReply) error {
 }
 
 func (c *Coordinator) processMap(args *TaskArgs, reply *TaskReply) error {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
 	if args.State != InitState && c.TaskMap[args.ID] != nil && c.TaskMap[args.ID].PID == args.PID {
 		// process the finish task
 		// rename file to final output TODO: verify here
@@ -65,6 +66,9 @@ func (c *Coordinator) processMap(args *TaskArgs, reply *TaskReply) error {
 		}
 
 		// mark it finished
+		fmt.Println("delete ID", args.ID, len(c.TaskMap))
+		fmt.Println("queue length", len(c.TaskQueue))
+		fmt.Println("map length", len(c.TaskMap))
 		delete(c.TaskMap, args.ID)
 	}
 
@@ -73,6 +77,12 @@ func (c *Coordinator) processMap(args *TaskArgs, reply *TaskReply) error {
 		c.transit()
 	}
 
+	if len(c.TaskQueue) == 0 && c.State != End{
+		fmt.Println("sleep a while")
+		reply.Type = SleepType
+		return nil
+	}
+	
 	// assign the next task
 	task := <-c.TaskQueue
 	reply.Type = task.TaskType
@@ -89,8 +99,6 @@ func (c *Coordinator) processMap(args *TaskArgs, reply *TaskReply) error {
 }
 
 func (c *Coordinator) processReduce(args *TaskArgs, reply *TaskReply) error {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
 	if c.TaskMap[args.ID] != nil && c.TaskMap[args.ID].PID == args.PID {
 		// process the finish task
 		// rename file to final output TODO: verify here
@@ -103,12 +111,19 @@ func (c *Coordinator) processReduce(args *TaskArgs, reply *TaskReply) error {
 		}
 
 		// mark it finished
+		fmt.Println("delete ID", args.ID)
 		delete(c.TaskMap, args.ID)
 	}
 
 	// transit to next state？
 	if len(c.TaskMap) == 0 {
 		c.transit()
+	}
+
+	if len(c.TaskQueue) == 0 && c.State != End{
+		fmt.Println("sleep a while")
+		reply.Type = SleepType
+		return nil
 	}
 
 	// assign the next task
@@ -123,7 +138,6 @@ func (c *Coordinator) processReduce(args *TaskArgs, reply *TaskReply) error {
 	task.StartTime = time.Now()
 	task.PID = args.PID
 	c.TaskMap[task.TaskID] = task
-
 	return nil
 }
 
@@ -189,6 +203,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		}
 		c.TaskMap[i] = nil
 	}
+	fmt.Println("queue length", len(c.TaskQueue))
 
 	// TODO: 回收任务
 	go func() {
