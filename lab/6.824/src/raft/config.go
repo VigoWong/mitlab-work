@@ -39,11 +39,11 @@ func makeSeed() int64 {
 type config struct {
 	mu        sync.Mutex
 	t         *testing.T
-	net       *labrpc.Network
-	n         int
-	rafts     []*Raft
+	net       *labrpc.Network		//
+	n         int		// number of raft peer
+	rafts     []*Raft	// array of raft peer
 	applyErr  []string // from apply channel readers
-	connected []bool   // whether each server is on the net
+	connected []bool   // whether each server is on the net, simulating unstable network
 	saved     []*Persister
 	endnames  [][]string            // the port file names each sends to
 	logs      []map[int]interface{} // copy of each server's committed entries
@@ -59,6 +59,7 @@ type config struct {
 
 var ncpu_once sync.Once
 
+// make_config initialize everything
 func make_config(t *testing.T, n int, unreliable bool, snapshot bool) *config {
 	ncpu_once.Do(func() {
 		if runtime.NumCPU() < 2 {
