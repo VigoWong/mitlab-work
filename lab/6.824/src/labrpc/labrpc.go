@@ -220,11 +220,12 @@ func (rn *Network) processReq(req reqMsg) {
 
 	if enabled && servername != nil && server != nil {
 		if reliable == false {
-			// short delay
+			// short net work delay
 			ms := (rand.Int() % 27)
 			time.Sleep(time.Duration(ms) * time.Millisecond)
 		}
 
+		// 1 out of 10 possibility to fail
 		if reliable == false && (rand.Int()%1000) < 100 {
 			// drop the request, return as if timeout
 			req.replyCh <- replyMsg{false, nil}
@@ -308,8 +309,7 @@ func (rn *Network) processReq(req reqMsg) {
 
 }
 
-// create a client end-point.
-// start the thread that listens and delivers.
+//MakeEnd create a client end-point. start the thread that listens and delivers.
 func (rn *Network) MakeEnd(endname interface{}) *ClientEnd {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
@@ -379,11 +379,9 @@ func (rn *Network) GetTotalBytes() int64 {
 	return x
 }
 
-//
 // a server is a collection of services, all sharing
 // the same rpc dispatcher. so that e.g. both a Raft
 // and a k/v server can listen to the same rpc endpoint.
-//
 type Server struct {
 	mu       sync.Mutex
 	services map[string]*Service

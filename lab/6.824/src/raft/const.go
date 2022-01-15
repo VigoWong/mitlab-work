@@ -1,7 +1,5 @@
 package raft
 
-import "time"
-
 type Role int
 
 const (
@@ -10,6 +8,6 @@ const (
 	Candidate
 )
 
-const HeartbeatInterval = time.Duration(120) * time.Millisecond
-const ElectionTimeoutLower = time.Duration(300) * time.Millisecond
-const ElectionTimeoutUpper = time.Duration(400) * time.Millisecond
+const HeartbeatInterval = 120
+const ElectionTimeoutLower = 300
+const ElectionTimeoutUpper = 400

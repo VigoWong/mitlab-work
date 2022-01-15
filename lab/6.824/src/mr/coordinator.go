@@ -43,6 +43,15 @@ func (c *Coordinator) AssignTask(args *TaskArgs, reply *TaskReply) error {
 	defer c.Lock.Unlock()
 
 	fmt.Println("Got a request from", args.PID)
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+
+	if len(c.TaskMap) == 0 && c.State != End {
+		fmt.Println("Sleep for a while")
+		reply.Type = SleepType
+		return nil
+	}
+
 	switch args.State {
 	case InitState:
 		c.processMap(args, reply)
@@ -77,14 +86,15 @@ func (c *Coordinator) processMap(args *TaskArgs, reply *TaskReply) error {
 		c.transit()
 	}
 
-	if len(c.TaskQueue) == 0 && c.State != End{
+	if len(c.TaskQueue) == 0 && c.State != End {
 		fmt.Println("sleep a while")
 		reply.Type = SleepType
 		return nil
 	}
-	
+
 	// assign the next task
 	task := <-c.TaskQueue
+	fmt.Println("Block out", len(c.TaskMap))
 	reply.Type = task.TaskType
 	reply.ID = task.TaskID
 	reply.FileName = task.FileName
@@ -120,12 +130,15 @@ func (c *Coordinator) processReduce(args *TaskArgs, reply *TaskReply) error {
 		c.transit()
 	}
 
-	if len(c.TaskQueue) == 0 && c.State != End{
+	if len(c.TaskQueue) == 0 && c.State != End {
 		fmt.Println("sleep a while")
 		reply.Type = SleepType
 		return nil
 	}
 
+	go func() {}()
+
+	fmt.Println("Block in", len(c.TaskMap))
 	// assign the next task
 	task := <-c.TaskQueue
 	reply.Type = task.TaskType
@@ -218,8 +231,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 }
 
 func (c *Coordinator) recycle() {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
+
 	for i, task := range c.TaskMap {
 		if task != nil {
 			if time.Now().After(task.StartTime.Add(time.Second * 10)) {
